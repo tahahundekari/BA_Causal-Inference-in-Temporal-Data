@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "ba-causal-inference-in-temporal-data"
+version = "0.1.0"
+description = ""
+authors = ["Taha Hundekari <ge47mut@mytum.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
