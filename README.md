@@ -8,3 +8,14 @@
     - raw -> Datasets used by CITRIS and iCITRIS
     - process -> Preprocessed times series
     - external -> External (real-world) data sets
+
+#### Setup
+- Install poetry [here](https://python-poetry.org/docs/#installing-with-pipx)
+- Install dependencies
+```bash
+poetry install
+```
+- Start environment
+```bash
+poetry shell
+```
