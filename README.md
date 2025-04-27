@@ -2,7 +2,6 @@
 
 #### This bachelor's thesis compares Causal Representation Learning (CRL) in temporal data with time-series forecasting with Kalman Filters.
 
-
 ### File Structure
 - data
     - raw -> Datasets used by CITRIS and iCITRIS
