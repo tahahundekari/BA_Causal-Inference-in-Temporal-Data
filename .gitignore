@@ -128,9 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Dataset
-data/
-
 # Checkpoints
 checkpoints/
 experiments/checkpoints/

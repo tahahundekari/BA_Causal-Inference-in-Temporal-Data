@@ -3,10 +3,14 @@
 #### This bachelor's thesis compares Causal Representation Learning (CRL) in temporal data with time-series forecasting with Kalman Filters.
 
 ### File Structure
-- data
-    - raw -> Datasets used by CITRIS and iCITRIS
-    - process -> Preprocessed times series
-    - external -> External (real-world) data sets
+- `data`
+    - `raw` -> Datasets used by CITRIS
+    - `process` -> Preprocessed times series
+
+- `citris` -> All scripts written by CITRIS authors
+
+- `src/scripts` -> All scripts not relating to CITRIS explicitly
+    
 
 ### Setup
 - Install Anaconda or Miniconda [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
@@ -17,6 +21,92 @@ conda env create -f environment.yml
 
 # Activate the environment
 conda activate ba-causal-inference-in-temporal-data
+```
+
+## Generating the data
+The interventional pong dataset can be found under [this repository]("https://github.com/phlippe/CITRIS"), which we will save under `data/raw/interventional_pong` to be used for further processing. First, a copy of this should be made in `data/processed/` with a particular name `<copy_name>` and the following commands should be run.
+
+```bash
+python src/scripts/squash_images_greyscale_in_npz.py \
+data/raw/interventional_pong/train.npz \
+data/processed/<copy_name>/train.npz
+
+python src/scripts/squash_images_greyscale_in_npz.py \
+data/raw/interventional_pong/test.npz \
+data/processed/<copy_name>/test.npz
+
+python src/scripts/squash_images_greyscale_in_npz.py \
+data/raw/interventional_pong/test_indep.npz \
+data/processed/<copy_name>/test_indep.npz
+
+python src/scripts/squash_images_greyscale_in_npz.py \
+data/raw/interventional_pong/test_triplets.npz \
+data/processed/<copy_name>/test_triplets.npz
+```
+
+
+## Running the training scripts
+
+### Kalman Filter
+```bash
+cd src/scripts
+
+# For batch-size of 10000 time-steps
+python run_kalman_pong.py \
+  --train_path data/processed/<copy_name>/train_kalman.npz \
+  --test_path data/processed/<copy_name>/test_kalman.npz \
+  --output_dir results/kalman_pong_preprocessed \
+  --batch_size 10000
+
+# For batch-size of 25000 time-steps
+python run_kalman_pong.py \
+  --train_path data/processed/<copy_name>/train_kalman.npz \
+  --test_path data/processed/<copy_name>/test_kalman.npz \
+  --output_dir results/kalman_pong_preprocessed \
+  --batch_size 25000
+
+# For batch-size of 50000 time-steps
+python run_kalman_pong.py \
+  --train_path data/processed/<copy_name>/train_kalman.npz \
+  --test_path data/processed/<copy_name>/test_kalman.npz \
+  --output_dir results/kalman_pong_preprocessed \
+  --batch_size 50000
+```
+
+### CITRIS
+```bash
+cd citris
+
+# Training the Causal Encoder
+python experiments/train_causal_encoder.py \
+--data_dir ../data/processed/<copy_name> \
+--max_epochs 10 \
+--num_workers 4
+
+# Training CITRIS VAE
+# For batch-size of 10000 time-steps
+python experiments/train_vae.py \
+--data_dir ../data/processed/<copy_name> \
+--causal_encoder_checkpoint checkpoints/CausalEncoder/<Causal_Encoder_name>/version_<version_number>/checkpoints/<checkpoint>.ckpt \
+--batch_size 10000 \
+--num_workers 4 \
+--max_epochs 10
+
+# For batch-size of 25000 time-steps
+python experiments/train_vae.py \
+--data_dir ../data/processed/<copy_name> \
+--causal_encoder_checkpoint checkpoints/CausalEncoder/<Causal_Encoder_name>/version_<version_number>/checkpoints/<checkpoint>.ckpt \
+--batch_size 25000 \
+--num_workers 4 \
+--max_epochs 10
+
+# For batch-size of 50000 time-steps
+python experiments/train_vae.py \
+--data_dir ../data/processed/<copy_name> \
+--causal_encoder_checkpoint checkpoints/CausalEncoder/<Causal_Encoder_name>/version_<version_number>/checkpoints/<checkpoint>.ckpt \
+--batch_size 50000 \
+--num_workers 4 \
+--max_epochs 10
 ```
 
 ### CITRIS and iCITRIS reference
