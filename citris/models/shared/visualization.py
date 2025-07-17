@@ -65,6 +65,38 @@ def visualize_reconstruction(model, image, label, dataset):
     return fig
 
 
+# This function is used to get the original image, prediction, and difference image
+# This is adapted from the `visualize_reconstruction` function
+@torch.no_grad()
+def get_reconstruction_arrays(model, image, label, dataset):
+    """ Returns numpy arrays of original image, hard prediction and difference """
+    reconst, *_ = model(image[None])
+    reconst = reconst.squeeze(dim=0)
+
+    if dataset.num_labels() > 1:
+        soft_img = dataset.label_to_img(torch.softmax(reconst, dim=0))
+        hard_img = dataset.label_to_img(torch.argmax(reconst, dim=0))
+        if label.dtype == torch.long:
+            true_img = dataset.label_to_img(label)
+            diff_img = (hard_img != true_img).any(dim=-1, keepdims=True).long() * 255
+        else:
+            true_img = label
+            soft_reconst = soft_img.float() / 255.0 * 2.0 - 1.0
+            diff_img = (label - soft_reconst).clamp(min=-1, max=1)
+    else:
+        soft_img = reconst
+        hard_img = reconst
+        true_img = label
+
+    imgs = [image, hard_img]
+    imgs = [t.permute(1, 2, 0) if (t.shape[0] in [3,4] and t.shape[-1] != 3) else t for t in imgs]
+    imgs = [t.detach().cpu().numpy() for t in imgs]
+    imgs = [((t + 1.0) * 255.0 / 2.0).astype(np.int32) if t.dtype == np.float32 else t for t in imgs]
+    imgs = [t.astype(np.uint8) for t in imgs]
+    
+    return tuple(imgs)
+
+
 @torch.no_grad()
 def plot_target_assignment(prior, dataset=None):
     """ Plots the probability matrix of latent-to-causal variable assignments """

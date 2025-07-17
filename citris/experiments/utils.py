@@ -5,17 +5,21 @@ General training function with PyTorch Lightning
 import os
 import argparse
 import json
+import numpy as np
 import torch
 import torch.utils.data as data
 import pytorch_lightning as pl 
-from pytorch_lightning.callbacks import ModelCheckpoint, GPUStatsMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint
 from shutil import copyfile
 from copy import copy
+import datetime
 
 import sys
+
+from citris.models.shared.visualization import get_reconstruction_arrays
 sys.path.append('../')
-# Import LinearDataset
-from citris.experiments.datasets import BallInBoxesDataset, InterventionalPongDataset, Causal3DDataset, VoronoiDataset, PinballDataset, LinearDataset
+from citris.experiments import datasets
+from citris.experiments.datasets import BallInBoxesDataset, InterventionalPongDataset, Causal3DDataset, VoronoiDataset, PinballDataset
 
 def get_device():
     return torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
@@ -42,9 +46,6 @@ def get_default_parser():
     parser.add_argument('--check_val_every_n_epoch', type=int, default=-1)
     parser.add_argument('--logger_name', type=str, default='')
     parser.add_argument('--files_to_save', type=str, nargs='+', default='')
-    # Add arguments for the model
-    parser.add_argument('--no_encoder_decoder', action='store_true', help='Skip complex encoder/decoder for linear data')
-    parser.add_argument('--use_flow_prior', type=lambda x: x.lower() == 'true', default=True, help='Use flow prior for the model')
     return parser
 
 def load_datasets(args):
@@ -79,12 +80,6 @@ def load_datasets(args):
         DataClass = PinballDataset
         dataset_args = {}
         test_args = lambda train_set: {'causal_vars': train_set.target_names_l}
-    # Add case for structured linear data
-    elif 'structured_linear' in args.data_dir:
-        data_name = 'linear'
-        DataClass = LinearDataset
-        dataset_args = {}
-        test_args = lambda train_set: {'causal_vars': train_set.target_names()}
     else:
         assert False, f'Unknown data class for {args.data_dir}'
     train_dataset = DataClass(
@@ -172,7 +167,9 @@ def train_model(model_class, train_loader, val_loader,
                 val_track_metric='val_loss',
                 data_dir=None,
                 **kwargs):
+    start_time = datetime.datetime.now()
     trainer_args = {}
+
     if root_dir is None or root_dir == '':
         root_dir = os.path.join('checkpoints/', model_class.__name__)
     if not (logger_name is None or logger_name == ''):
@@ -236,6 +233,13 @@ def train_model(model_class, train_loader, val_loader,
         model = model_class.load_from_checkpoint(
             trainer.checkpoint_callback.best_model_path)  # Load best checkpoint after training
 
+    end_time = datetime.datetime.now()
+    with open(os.path.join(trainer.logger.log_dir, 'training_time.json'), 'w') as f:
+        time_taken = {
+            'time': f"{end_time - start_time}"
+        }
+        json.dump(time_taken, f, indent=4)
+
     if test_loader is not None:
         model_paths = [(trainer.checkpoint_callback.best_model_path, "best")]
         if save_last_model:
@@ -245,15 +249,52 @@ def train_model(model_class, train_loader, val_loader,
             for c in callbacks:
                 if hasattr(c, 'set_test_prefix'):
                     c.set_test_prefix(prefix)
-            test_result = trainer.test(model, dataloaders=test_loader, verbose=False)
-            test_result = test_result[0]
-            print('='*50)
-            print(f'Test results ({prefix}):')
-            print('-'*50)
-            for key in test_result:
-                print(key + ':', test_result[key])
-            print('='*50)
+                        # Run normal testing
+            test_result_array = trainer.test(model, dataloaders=test_loader, verbose=False)
 
-            log_file = os.path.join(trainer.logger.log_dir, f'test_results_{prefix}.json')
-            with open(log_file, 'w') as f:
-                json.dump(test_result, f, indent=4)
+            for i in range(len(test_result_array)):
+                test_result = test_result_array[i]
+                # Save normal test results
+                print('='*50)
+                print(f'Test results ({prefix}):')
+                print('-'*50)
+                for key in test_result:
+                    print(key + ':', test_result[key])
+                print('='*50)
+
+                log_file = os.path.join(trainer.logger.log_dir, f'test_results_{prefix}.json')
+                with open(log_file, 'w') as f:
+                    json.dump(test_result, f, indent=4)
+            
+            print(f"Saving reconstructions for {prefix} model...")
+
+            save_dir = os.path.join(trainer.logger.log_dir, f'reconstructions_{prefix}')
+            dataset = callback_kwargs['correlation_test_dataset']
+            save_all_reconstructions(model, test_loader, save_dir, dataset)
+                
+            print(f"Finished saving reconstructions for {prefix} model.")
+
+
+            
+# Save all reconstructions
+def save_all_reconstructions(model, data_loader, save_dir, dataset):
+    os.makedirs(save_dir, exist_ok=True)
+    for batch_idx, batch in enumerate(data_loader):
+        imgs = batch[0]  # Assuming images are the first element
+        labels = imgs if len(batch) == 1 else batch[1]  # Use images as labels if none provided
+        
+        for i in range(imgs.shape[0]):
+            # Check if we're dealing with a sequence (5D tensor) and extract the last frame
+            if len(imgs[i].shape) > 3:  # If shape is [seq_len, channels, height, width]
+                img = imgs[i, -1]  # Take the last frame of the sequence
+                label = labels[i, -1] if len(labels[i].shape) > 3 else labels[i]
+            else:
+                img = imgs[i]
+                label = labels[i]
+                
+            original, hard_pred = get_reconstruction_arrays(model, img, label, dataset)
+            sample_dir = os.path.join(save_dir, f'sample_{batch_idx}_{i}')
+            os.makedirs(sample_dir, exist_ok=True)
+            np.save(os.path.join(sample_dir, 'original.npy'), original)
+            np.save(os.path.join(sample_dir, 'prediction.npy'), hard_pred)
+

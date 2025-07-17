@@ -11,8 +11,8 @@ from collections import OrderedDict, defaultdict
 
 import sys
 sys.path.append('../')
-from ..shared import CosineWarmupScheduler, SineWarmupScheduler, get_act_fn, log_dict, Encoder, Decoder, SimpleEncoder, SimpleDecoder, TransitionPrior, TargetClassifier, CausalEncoder, ImageLogCallback, CorrelationMetricsLogCallback
-from ..shared import AutoregNormalizingFlow, gaussian_log_prob
+from citris.models.shared import CosineWarmupScheduler, SineWarmupScheduler, get_act_fn, log_dict, Encoder, Decoder, SimpleEncoder, SimpleDecoder, TransitionPrior, TargetClassifier, CausalEncoder, ImageLogCallback, CorrelationMetricsLogCallback
+from citris.models.shared import AutoregNormalizingFlow, gaussian_log_prob
 
 
 class CITRISVAE(pl.LightningModule):
@@ -171,20 +171,13 @@ class CITRISVAE(pl.LightningModule):
 
     def encode(self, x, random=True):
         # Map input to encoding, e.g. for correlation metrics
-        if isinstance(self.encoder, nn.Identity):
-            z_mean = self.encoder(x)
-            z_logstd = torch.zeros_like(z_mean)
-        else:
-            z_mean, z_logstd = self.encoder(x)
-    
+        z_mean, z_logstd = self.encoder(x)
         if random:
             z_sample = z_mean + torch.randn_like(z_mean) * z_logstd.exp()
         else:
             z_sample = z_mean
-    
         if self.hparams.use_flow_prior:
             z_sample, _ = self.flow(z_sample)
-    
         return z_sample
 
     def configure_optimizers(self):
@@ -210,14 +203,7 @@ class CITRISVAE(pl.LightningModule):
         else:
             imgs, labels, target = batch
         # En- and decode every element of the sequence, except first element no decoding
-    
-        # Add this check for Identity encoder
-        if isinstance(self.encoder, nn.Identity):
-            z_mean = self.encoder(imgs.flatten(0, 1))
-            z_logstd = torch.zeros_like(z_mean)
-        else:
-            z_mean, z_logstd = self.encoder(imgs.flatten(0, 1))
-    
+        z_mean, z_logstd = self.encoder(imgs.flatten(0, 1))
         z_sample = z_mean + torch.randn_like(z_mean) * z_logstd.exp()
         x_rec = self.decoder(z_sample.unflatten(0, imgs.shape[:2])[:,1:].flatten(0, 1))
         z_sample, z_mean, z_logstd, x_rec = [t.unflatten(0, (imgs.shape[0], -1)) for t in [z_sample, z_mean, z_logstd, x_rec]]
@@ -248,10 +234,7 @@ class CITRISVAE(pl.LightningModule):
         if isinstance(self.decoder, nn.Identity):
             rec_loss = z_mean.new_zeros(imgs.shape[0], imgs.shape[1])
         else:
-            if len(labels.shape) <= 3:  # Linear data case
-                rec_loss = F.mse_loss(x_rec, labels[:,1:], reduction='none').sum(dim=-1)
-            else:  # Original image data case
-                rec_loss = F.mse_loss(x_rec, labels[:,1:], reduction='none').sum(dim=[-3, -2, -1])
+            rec_loss = F.mse_loss(x_rec, labels[:,1:], reduction='none').sum(dim=[-3, -2, -1])
         # Combine to full loss
         kld_factor = self.kld_scheduler.get_factor(self.global_step)
         loss = (kld_factor * (kld_t1_all * self.hparams.beta_t1) + rec_loss.sum(dim=1)).mean()
@@ -273,43 +256,10 @@ class CITRISVAE(pl.LightningModule):
 
         return loss
 
-    # def triplet_prediction(self, imgs, source):
-    #     """ Generates the triplet prediction of input image pairs and causal mask """
-    #     input_imgs = imgs[:,:2].flatten(0, 1)
-    #     z_mean, z_logstd = self.encoder(input_imgs)
-    #     if self.hparams.use_flow_prior:
-    #         z_mean, _ = self.flow(z_mean)
-    #     input_samples = z_mean
-    #     input_samples = input_samples.unflatten(0, (-1, 2))
-    #     # Map the causal mask to a latent variable mask
-    #     target_assignment = self.prior_t1.get_target_assignment(hard=True)
-    #     if source.shape[-1] + 1 == target_assignment.shape[-1]:  # No-variables missing
-    #         source = torch.cat([source, source[...,-1:] * 0.0], dim=-1)
-    #     elif target_assignment.shape[-1] > source.shape[-1]:
-    #         target_assignment = target_assignment[...,:source.shape[-1]]
-    #     # Take the latent variables from image 1 respective to the mask, and image 2 the inverse
-    #     mask_1 = (target_assignment[None,:,:] * (1 - source[:,None,:])).sum(dim=-1)
-    #     mask_2 = 1 - mask_1
-    #     triplet_samples = mask_1 * input_samples[:,0] + mask_2 * input_samples[:,1]
-    #     if self.hparams.use_flow_prior:
-    #         triplet_samples = self.flow.reverse(triplet_samples)
-    #     # Decode the new combination
-    #     triplet_rec = self.decoder(triplet_samples)
-    #     if self.output_to_input is not None:
-    #         triplet_rec = self.output_to_input(triplet_rec)
-    #     return triplet_rec
-
     def triplet_prediction(self, imgs, source):
         """ Generates the triplet prediction of input image pairs and causal mask """
         input_imgs = imgs[:,:2].flatten(0, 1)
-    
-        # Add special handling for nn.Identity encoder
-        if isinstance(self.encoder, nn.Identity):
-            z_mean = self.encoder(input_imgs)
-            z_logstd = torch.zeros_like(z_mean)
-        else:
-            z_mean, z_logstd = self.encoder(input_imgs)
-
+        z_mean, z_logstd = self.encoder(input_imgs)
         if self.hparams.use_flow_prior:
             z_mean, _ = self.flow(z_mean)
         input_samples = z_mean
@@ -438,31 +388,10 @@ class CITRISVAE(pl.LightningModule):
             np.savez_compressed(os.path.join(self.logger.log_dir, 'causal_encoder_v_dicts.npz'), **outputs)
             self.all_v_dicts = []
 
-    # @staticmethod
-    # def get_callbacks(exmp_inputs=None, dataset=None, cluster=False, correlation_dataset=None, correlation_test_dataset=None, **kwargs):
-    #     img_callback = ImageLogCallback(exmp_inputs, dataset, every_n_epochs=10 if not cluster else 50, cluster=cluster)
-    #     corr_callback = CorrelationMetricsLogCallback(correlation_dataset, cluster=cluster, test_dataset=correlation_test_dataset)
-    #     # Create learning rate callback
-    #     lr_callback = LearningRateMonitor('step')
-    #     return [lr_callback, img_callback, corr_callback]
-
     @staticmethod
     def get_callbacks(exmp_inputs=None, dataset=None, cluster=False, correlation_dataset=None, correlation_test_dataset=None, **kwargs):
-        # Check if we're dealing with linear data
-        is_linear_data = hasattr(dataset, 'is_linear') and dataset.is_linear
-        
-        # Only add image callback if we have image data
-        callbacks = []
-        if not is_linear_data:
-            img_callback = ImageLogCallback(exmp_inputs, dataset, every_n_epochs=10 if not cluster else 50, cluster=cluster)
-            callbacks.append(img_callback)
-        
-        # Correlation metrics should work for both image and linear data
+        img_callback = ImageLogCallback(exmp_inputs, dataset, every_n_epochs=10 if not cluster else 50, cluster=cluster)
         corr_callback = CorrelationMetricsLogCallback(correlation_dataset, cluster=cluster, test_dataset=correlation_test_dataset)
-        callbacks.append(corr_callback)
-        
-        # Learning rate callback works regardless of data type
+        # Create learning rate callback
         lr_callback = LearningRateMonitor('step')
-        callbacks.append(lr_callback)
-        
-        return callbacks
+        return [lr_callback, img_callback, corr_callback]

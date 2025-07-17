@@ -73,6 +73,17 @@ class LinearDataset(data.Dataset):
         """Return number of causal variables"""
         return self.latents.shape[1]
 
+    def validation_step(self, batch, batch_idx):
+        """Validation step for the dataset"""
+        if hasattr(self.trainer.datamodule.dataset, 'is_linear') and self.trainer.datamodule.dataset.is_linear:
+            loss = self._get_loss(batch, mode='val')
+            self.log('val_loss', loss)
+        else:
+            # For image data, use triplet evaluation
+            imgs, *_ = batch
+            loss = self.triplet_evaluation(batch, mode='val')
+            self.log('val_loss', loss)
+
 
 class InterventionalPongDataset(data.Dataset):
 

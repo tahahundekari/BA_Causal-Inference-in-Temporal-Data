@@ -15,10 +15,10 @@ from scipy.stats import spearmanr
 
 import sys
 sys.path.append('../../')
-from .visualization import visualize_reconstruction, plot_target_assignment, plot_target_classification, visualize_triplet_reconstruction, visualize_graph, plot_latents_mutual_information
-from .utils import log_matrix, log_dict, evaluate_adj_matrix
-from .causal_encoder import CausalEncoder
-from .enco import ENCOGraphLearning
+from citris.models.shared.visualization import visualize_reconstruction, plot_target_assignment, plot_target_classification, visualize_triplet_reconstruction, visualize_graph, plot_latents_mutual_information
+from citris.models.shared.utils import log_matrix, log_dict, evaluate_adj_matrix
+from citris.models.shared.causal_encoder import CausalEncoder
+from citris.models.shared.enco import ENCOGraphLearning
 
 
 class ImageLogCallback(pl.Callback):

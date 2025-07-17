@@ -15,7 +15,8 @@ from citris.experiments.utils import train_model, load_datasets, get_default_par
 
 if __name__ == '__main__':
     parser = get_default_parser()
-    parser.add_argument('--model', type=str, default='iCITRISVAE')
+    # Use CITRISVAE as the default model
+    parser.add_argument('--model', type=str, default='CITRISVAE')
     parser.add_argument('--c_hid', type=int, default=32)
     parser.add_argument('--decoder_num_blocks', type=int, default=1)
     parser.add_argument('--act_fn', type=str, default='silu')

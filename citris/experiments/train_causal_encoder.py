@@ -14,7 +14,7 @@ import sys
 sys.path.append('../')
 from citris.models.shared import CausalEncoder
 from citris.models.ae import Autoencoder
-from citris.experiments.datasets import Causal3DDataset, InterventionalPongDataset, LinearDataset, VoronoiDataset, PinballDataset, BallInBoxesDataset
+from citris.experiments.datasets import Causal3DDataset, InterventionalPongDataset, VoronoiDataset, PinballDataset, BallInBoxesDataset
 from citris.experiments.utils import train_model, print_params
 
 
@@ -46,8 +46,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cluster', action="store_true")
     parser.add_argument('--max_epochs', type=int, default=200)
-    # Flag for linear data
-    parser.add_argument('--single_linear', action="store_true", help="Use MLP instead of CNN for linear data")
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--batch_size', type=int, default=128)
@@ -79,9 +77,6 @@ if __name__ == '__main__':
         DataClass = VoronoiDataset
     elif 'pinball' in args.data_dir:
         DataClass = PinballDataset
-    # Using newly created linear dataset
-    elif 'structured_linear' in args.data_dir:
-        DataClass = LinearDataset
     else:
         DataClass = Causal3DDataset
     
