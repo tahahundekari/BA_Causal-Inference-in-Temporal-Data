@@ -44,7 +44,6 @@ data/raw/interventional_pong/test_triplets.npz \
 data/processed/<copy_name>/test_triplets.npz
 ```
 
-
 ## Running the training scripts
 
 ### Kalman Filter
@@ -109,7 +108,11 @@ python experiments/train_vae.py \
 --max_epochs 10
 ```
 
-### CITRIS and iCITRIS reference
+CITRIS saves its results under `citris/checkpoints/CITRIS`
+
+---
+
+### CITRIS reference
 ```bibtex
 @inproceedings{lippe2022citris,
    title        = {{CITRIS}: Causal Identifiability from Temporal Intervened Sequences},
@@ -123,14 +126,5 @@ python experiments/train_vae.py \
    pages        = {13557--13603},
    url          = {https://proceedings.mlr.press/v162/lippe22a.html},
    editor       = {Chaudhuri, Kamalika and Jegelka, Stefanie and Song, Le and Szepesvari, Csaba and Niu, Gang and Sabato, Sivan}
-}
-```
-```bibtex
-@inproceedings{lippe2023causal,
-    title        = {Causal Representation Learning for Instantaneous and Temporal Effects in Interactive Systems},
-    author       = {Phillip Lippe and Sara Magliacane and Sindy L{\"o}we and Yuki M Asano and Taco Cohen and Efstratios Gavves},
-    year         = 2023,
-    booktitle    = {The Eleventh International Conference on Learning Representations},
-    url          = {https://openreview.net/forum?id=itZ6ggvMnzS}
 }
 ```
