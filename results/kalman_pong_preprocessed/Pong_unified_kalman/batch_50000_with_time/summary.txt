@@ -1,0 +1,13 @@
+Kalman Filter Analysis
+Date: 2025-06-25 22:55:53
+
+Training data: citris/interventional_pong_preprocessed/train_kalman.npz
+Test data: citris/interventional_pong_preprocessed/test_kalman.npz
+State dimensions: 32
+Training samples: 50000
+Test samples: 25000
+Kalman EM iterations: 10
+
+Current frame reconstruction MSE: 1935.104201
+Next frame prediction MSE: 2452.493424
+Total time taken: 0:02:26.244626

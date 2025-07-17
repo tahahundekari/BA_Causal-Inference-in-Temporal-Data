@@ -1,0 +1,7 @@
+{
+  "filter_mse": 1935.1042014577615,
+  "prediction_mse": 2452.4934242891,
+  "num_features": 32,
+  "num_samples": 25000,
+  "timestamp": "2025-06-25 22:55:51"
+}

@@ -1,0 +1,14 @@
+{
+  "model_type": "KalmanFilter",
+  "train_path": "citris/interventional_pong_preprocessed/train_kalman.npz",
+  "test_path": "citris/interventional_pong_preprocessed/test_kalman.npz",
+  "n_iter": 10,
+  "transition_cov_scale": 0.01,
+  "observation_cov_scale": 0.1,
+  "train_samples": 25000,
+  "test_samples": 25000,
+  "state_dimensions": 32,
+  "filter_mse": 1934.3657930409217,
+  "prediction_mse": 2452.155513458697,
+  "timestamp": "2025-06-25 22:53:06"
+}
